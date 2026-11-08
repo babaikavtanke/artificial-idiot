@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dumb Bot Dashboard</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      background-color: #f4f6f8;
+      color: #333;
+    }
+    .card {
+      background: white;
+      padding: 2.5rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+      max-width: 480px;
+      text-align: center;
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      background-color: #d1fae5;
+      color: #065f46;
+      font-weight: 600;
+      font-size: 0.85rem;
+      margin-bottom: 1rem;
+    }
+    code {
+      background-color: #eee;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.9em;
+    }
+    ul {
+      text-align: left;
+      line-height: 1.8;
+      padding-left: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="status-badge">● Online</div>
+    <h1>Dumb Bot is Live!</h1>
+    <p>The bot is currently running and listening for messages on Telegram.</p>
+    <hr style="border: none; border-top: 1px solid #eee; margin: 1.5rem 0;">
+    <h3>Available Telegram Commands</h3>
+    <ul>
+      <li><code>/start</code> - View bot intro</li>
+      <li><code>/setprompt &lt;text&gt;</code> - Customize bot personality</li>
+      <li><code>/showprompt</code> - View current prompt</li>
+      <li><code>/resetprompt</code> - Return to silly mode</li>
+    </ul>
+  </div>
+</body>
+</html>
