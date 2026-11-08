@@ -27,14 +27,11 @@ logging.basicConfig(
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_TELEGRAM_BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "YOUR_OPENAI_API_KEY")
 
-# Change this in app.py:
+# Groq Client using OpenAI compatibility
 ai_client = OpenAI(
     api_key=OPENAI_API_KEY,
     base_url="https://api.groq.com/openai/v1",
 )
-
-# And inside chat_handler, change the model name to:
-model="llama-3.1-8b-instant"  # completely free on Groq
 
 DEFAULT_SYSTEM_PROMPT = (
     "You are a comically clueless bot. Always give wildly unhelpful, silly, "
@@ -67,7 +64,10 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 async def set_prompt_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not context.args:
-        await update.message.reply_text("Please provide a prompt! Example:\n/setprompt You speak only in pirate rhymes.")
+        await update.message.reply_text(
+            "Please provide a prompt! Example:\n"
+            "/setprompt You speak only in pirate rhymes."
+        )
         return
     new_prompt = " ".join(context.args)
     context.chat_data["custom_prompt"] = new_prompt
@@ -101,7 +101,7 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     try:
         response = ai_client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_text},
@@ -110,7 +110,7 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         )
         reply = response.choices[0].message.content
     except Exception as exc:
-        logging.error("OpenAI error: %s", exc)
+        logging.error("OpenAI/Groq error: %s", exc)
         reply = "My brain crashed. Try asking again in a moment."
 
     await update.message.reply_text(reply)
