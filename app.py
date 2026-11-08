@@ -87,69 +87,7 @@ async def reset_prompt_command(update: Update, context: ContextTypes.DEFAULT_TYP
 async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message or not update.message.text:
         return
-user_text = update.message.text
-    urls = re.findall(r"https?://[^\s]+", user_text)
-    scraped_content = fetch_url_content(urls[0]) if urls else ""
 
-    base_prompt = context.chat_data.get("custom_prompt", DEFAULT_SYSTEM_PROMPT)
-    current_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    system_prompt = f"{base_prompt}\n(Current time: {current_time_str})"
-    if scraped_content:
-        system_prompt += f"\nContext from URL:\n{scraped_content}"
-
-    try:
-        response = ai_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_text},
-            ],
-            temperature=0.9,
-        )
-        reply = response.choices[0].message.content
-    except Exception as exc:
-        logging.error("OpenAI/Groq error: %s", exc)
-        reply = "My brain crashed. Try asking again in a moment."
-
-    await update.message.reply_text(reply)
-
-
-# Flask Web App
-app = Flask(__name__)
-
-
-@app.route("/")
-def index():
-    return render_template("index.html")
-
-
-def run_telegram_bot():
-    """Run Telegram polling inside a dedicated asyncio thread."""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    tg_app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
-    tg_app.add_handler(CommandHandler("start", start_command))
-    tg_app.add_handler(CommandHandler("setprompt", set_prompt_command))
-    tg_app.add_handler(CommandHandler("showprompt", show_prompt_command))
-    tg_app.add_handler(CommandHandler("resetprompt", reset_prompt_command))
-    tg_app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), chat_handler))
-
-    logging.info("Starting Telegram bot loop...")
-    loop.run_until_complete(tg_app.initialize())
-    loop.run_until_complete(tg_app.start())
-    loop.run_until_complete(tg_app.updater.start_polling())
-    loop.run_forever()
-
-
-# Launch the bot in a background thread upon starting the web service
-bot_thread = threading.Thread(target=run_telegram_bot, daemon=True)
-bot_thread.start()
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
     user_text = update.message.text
     urls = re.findall(r"https?://[^\s]+", user_text)
     scraped_content = fetch_url_content(urls[0]) if urls else ""
