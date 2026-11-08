@@ -24,8 +24,8 @@ logging.basicConfig(
 )
 
 # Read credentials from Render Environment Variables
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_TELEGRAM_BOT_TOKEN")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "YOUR_OPENAI_API_KEY")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
 
 # Groq Client using OpenAI compatibility
 ai_client = OpenAI(
@@ -53,6 +53,7 @@ def fetch_url_content(url: str) -> str:
 
 # Telegram Handlers
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    logging.info("Received /start from user %s", update.effective_user.id)
     await update.message.reply_text(
         "Hey! I am set to give goofy answers by default.\n\n"
         "Commands:\n"
@@ -89,6 +90,8 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
 
     user_text = update.message.text
+    logging.info("Incoming message: %s", user_text)
+
     urls = re.findall(r"https?://[^\s]+", user_text)
     scraped_content = fetch_url_content(urls[0]) if urls else ""
 
@@ -125,14 +128,32 @@ def index():
     return render_template("index.html")
 
 
-def run_telegram_bot():
-    """Run Telegram polling inside a dedicated asyncio thread."""
+def start_bot_background():
+    """Initializes and runs the Telegram bot polling inside its own loop."""
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
-    tg_app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
+    tg_app = (
+        ApplicationBuilder()
+        .token(TELEGRAM_BOT_TOKEN)
+        .concurrent_updates(True)
+        .build()
+    )
+
     tg_app.add_handler(CommandHandler("start", start_command))
     tg_app.add_handler(CommandHandler("setprompt", set_prompt_command))
     tg_app.add_handler(CommandHandler("showprompt", show_prompt_command))
     tg_app.add_handler(CommandHandler("resetprompt", reset_prompt_command))
-    tg_app.add_handler
+    tg_app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), chat_handler))
+
+    logging.info(">>> TELEGRAM BOT POLLING HAS STARTED SUCCESSFULLY <<<")
+    tg_app.run_polling(close_loop=False)
+
+
+# Start thread
+bot_thread = threading.Thread(target=start_bot_background, daemon=True)
+bot_thread.start()
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
