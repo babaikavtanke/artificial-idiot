@@ -101,7 +101,7 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     try:
         response = ai_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_text},
@@ -135,19 +135,4 @@ def run_telegram_bot():
     tg_app.add_handler(CommandHandler("setprompt", set_prompt_command))
     tg_app.add_handler(CommandHandler("showprompt", show_prompt_command))
     tg_app.add_handler(CommandHandler("resetprompt", reset_prompt_command))
-    tg_app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), chat_handler))
-
-    logging.info("Starting Telegram bot loop...")
-    loop.run_until_complete(tg_app.initialize())
-    loop.run_until_complete(tg_app.start())
-    loop.run_until_complete(tg_app.updater.start_polling())
-    loop.run_forever()
-
-
-# Launch the bot in a background thread upon starting the web service
-bot_thread = threading.Thread(target=run_telegram_bot, daemon=True)
-bot_thread.start()
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    tg_app.add_handler
