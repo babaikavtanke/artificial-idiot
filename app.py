@@ -27,7 +27,14 @@ logging.basicConfig(
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_TELEGRAM_BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "YOUR_OPENAI_API_KEY")
 
-ai_client = OpenAI(api_key=OPENAI_API_KEY)
+# Change this in app.py:
+ai_client = OpenAI(
+    api_key=OPENAI_API_KEY,
+    base_url="https://api.groq.com/openai/v1",
+)
+
+# And inside chat_handler, change the model name to:
+model="llama-3.1-8b-instant"  # completely free on Groq
 
 DEFAULT_SYSTEM_PROMPT = (
     "You are a comically clueless bot. Always give wildly unhelpful, silly, "
