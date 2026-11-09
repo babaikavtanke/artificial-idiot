@@ -27,9 +27,10 @@ logging.basicConfig(
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
 PRIMARY_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
 SECONDARY_API_KEY = os.getenv("OPENAI_API_KEY_SECONDARY", "").strip()
+TERTIARY_API_KEY = os.getenv("OPENAI_API_KEY_TERTIARY", "").strip()
 
-# Prepare client instances for each provided key
-api_keys = [k for k in [PRIMARY_API_KEY, SECONDARY_API_KEY] if k]
+# Collect all non-empty API keys and build OpenAI client instances
+api_keys = [k for k in [PRIMARY_API_KEY, SECONDARY_API_KEY, TERTIARY_API_KEY] if k]
 clients = [
     OpenAI(api_key=key, base_url="https://openrouter.ai/api/v1")
     for key in api_keys
@@ -126,7 +127,7 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     candidate_models = ["recursive/flint-v1.0:free", "openrouter/free"]
     reply = None
 
-    # Loop through available API keys first, then fallback through models
+    # Try keys in order (Key 1 -> Key 2 -> Key 3), iterating candidate models for each
     for key_index, client in enumerate(clients, start=1):
         for model_name in candidate_models:
             try:
@@ -164,7 +165,7 @@ def index():
 
 
 def start_bot_background():
-    """Initializes and runs the Telegram bot polling inside its own thread and loop."""
+    """Initializes and runs the Telegram bot polling safely in the background."""
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
