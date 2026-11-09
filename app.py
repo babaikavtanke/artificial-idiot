@@ -102,18 +102,28 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if scraped_content:
         system_prompt += f"\nContext from URL:\n{scraped_content}"
 
-    try:
-        response = ai_client.chat.completions.create(
-            model="openrouter/free",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_text},
-            ],
-            temperature=0.9,
-        )
-        reply = response.choices[0].message.content
-    except Exception as exc:
-        logging.error("OpenRouter error: %s", exc)
+    # Try preferred model first, then fallback to openrouter/free
+    candidate_models = ["recursive/flint-v1.0:free", "openrouter/free"]
+    reply = None
+
+    for model_name in candidate_models:
+        try:
+            logging.info("Attempting generation with model: %s", model_name)
+            response = ai_client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_text},
+                ],
+                temperature=0.9,
+            )
+            reply = response.choices[0].message.content
+            if reply:
+                break
+        except Exception as exc:
+            logging.warning("Model %s failed: %s", model_name, exc)
+
+    if not reply:
         reply = "My brain crashed. Try asking again in a moment."
 
     await update.message.reply_text(reply)
@@ -129,7 +139,7 @@ def index():
 
 
 def start_bot_background():
-    """Initializes and runs the Telegram bot polling safely in the background."""
+    """Initializes and runs the Telegram bot polling inside its own thread and loop."""
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
