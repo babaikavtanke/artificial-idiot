@@ -104,7 +104,7 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     try:
         response = ai_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="gemma2-9b-it",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_text},
