@@ -42,6 +42,9 @@ DEFAULT_SYSTEM_PROMPT = (
     "Keep answers relatively short and goofy."
 )
 
+# Shared memory dictionary by chat_id
+chat_prompts = {}
+
 
 def fetch_url_content(url: str) -> str:
     """Fetch text from a link found in the user prompt."""
@@ -67,6 +70,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 async def set_prompt_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
     if not context.args:
         await update.message.reply_text(
             "Please provide a prompt! Example:\n"
@@ -74,16 +78,20 @@ async def set_prompt_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
         return
     new_prompt = " ".join(context.args)
+    chat_prompts[chat_id] = new_prompt
     context.chat_data["custom_prompt"] = new_prompt
     await update.message.reply_text(f"Prompt updated to:\n\n\"{new_prompt}\"")
 
 
 async def show_prompt_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    active_prompt = context.chat_data.get("custom_prompt", DEFAULT_SYSTEM_PROMPT)
+    chat_id = update.effective_chat.id
+    active_prompt = chat_prompts.get(chat_id) or context.chat_data.get("custom_prompt", DEFAULT_SYSTEM_PROMPT)
     await update.message.reply_text(f"Current prompt:\n\n{active_prompt}")
 
 
 async def reset_prompt_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    chat_prompts.pop(chat_id, None)
     context.chat_data.pop("custom_prompt", None)
     await update.message.reply_text("Prompt reset back to silly mode!")
 
@@ -92,6 +100,7 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if not update.message or not update.message.text:
         return
 
+    chat_id = update.effective_chat.id
     chat_type = update.message.chat.type
     user_text = update.message.text
     bot_username = context.bot.username or ""
@@ -106,28 +115,32 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         is_mentioned = bool(bot_username and f"@{bot_username}".lower() in user_text.lower())
 
         if not (is_reply_to_bot or is_mentioned):
-            return  # Skip messages not directed at the bot
+            return
 
-        # Strip out the @mention from the message before passing to AI
         if bot_username:
             user_text = re.sub(rf"@{re.escape(bot_username)}", "", user_text, flags=re.IGNORECASE).strip()
 
-    logging.info("Incoming message: %s", user_text)
+    logging.info("Incoming message in chat %s: %s", chat_id, user_text)
 
     urls = re.findall(r"https?://[^\s]+", user_text)
     scraped_content = fetch_url_content(urls[0]) if urls else ""
 
-    base_prompt = context.chat_data.get("custom_prompt", DEFAULT_SYSTEM_PROMPT)
+    base_prompt = chat_prompts.get(chat_id) or context.chat_data.get("custom_prompt", DEFAULT_SYSTEM_PROMPT)
     current_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    system_prompt = f"{base_prompt}\n(Current time: {current_time_str})"
+    # Reinforce instruction inside both system and user messages
+    system_prompt = f"CRITICAL INSTRUCTION - FOLLOW THIS PERSONA STRICTLY:\n{base_prompt}\n(Current time: {current_time_str})"
     if scraped_content:
         system_prompt += f"\nContext from URL:\n{scraped_content}"
+
+    full_user_content = (
+        f"[Instruction: Adopt this persona strictly: {base_prompt}]\n\n"
+        f"User message: {user_text}"
+    )
 
     candidate_models = ["recursive/flint-v1.0:free", "openrouter/free"]
     reply = None
 
-    # Try keys in order (Key 1 -> Key 2 -> Key 3), iterating candidate models for each
     for key_index, client in enumerate(clients, start=1):
         for model_name in candidate_models:
             try:
@@ -136,7 +149,7 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                     model=model_name,
                     messages=[
                         {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_text},
+                        {"role": "user", "content": full_user_content},
                     ],
                     temperature=0.9,
                 )
@@ -194,7 +207,6 @@ def start_bot_background():
     loop.run_until_complete(bot_runner())
 
 
-# Start background bot thread
 bot_thread = threading.Thread(target=start_bot_background, daemon=True)
 bot_thread.start()
 
