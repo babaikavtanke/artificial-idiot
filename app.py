@@ -104,7 +104,7 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     try:
         response = ai_client.chat.completions.create(
-            model="meta-llama/llama-3.2-3b-instruct:free",
+            model=":free",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_text},
