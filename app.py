@@ -129,28 +129,37 @@ def index():
 
 
 def start_bot_background():
-    """Initializes and runs the Telegram bot polling inside its own loop."""
+    """Initializes and runs the Telegram bot polling inside its own thread and loop."""
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
-    tg_app = (
-        ApplicationBuilder()
-        .token(TELEGRAM_BOT_TOKEN)
-        .concurrent_updates(True)
-        .build()
-    )
+    async def bot_runner():
+        tg_app = (
+            ApplicationBuilder()
+            .token(TELEGRAM_BOT_TOKEN)
+            .concurrent_updates(True)
+            .build()
+        )
 
-    tg_app.add_handler(CommandHandler("start", start_command))
-    tg_app.add_handler(CommandHandler("setprompt", set_prompt_command))
-    tg_app.add_handler(CommandHandler("showprompt", show_prompt_command))
-    tg_app.add_handler(CommandHandler("resetprompt", reset_prompt_command))
-    tg_app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), chat_handler))
+        tg_app.add_handler(CommandHandler("start", start_command))
+        tg_app.add_handler(CommandHandler("setprompt", set_prompt_command))
+        tg_app.add_handler(CommandHandler("showprompt", show_prompt_command))
+        tg_app.add_handler(CommandHandler("resetprompt", reset_prompt_command))
+        tg_app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), chat_handler))
 
-    logging.info(">>> TELEGRAM BOT POLLING HAS STARTED SUCCESSFULLY <<<")
-    tg_app.run_polling(close_loop=False)
+        await tg_app.initialize()
+        await tg_app.start()
+        await tg_app.updater.start_polling()
+        logging.info(">>> TELEGRAM BOT POLLING IS RUNNING SUCCESSFULLY <<<")
+        
+        # Keep loop running forever
+        while True:
+            await asyncio.sleep(3600)
+
+    loop.run_until_complete(bot_runner())
 
 
-# Start thread
+# Start background bot thread
 bot_thread = threading.Thread(target=start_bot_background, daemon=True)
 bot_thread.start()
 
