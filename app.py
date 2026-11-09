@@ -104,7 +104,7 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     try:
         response = ai_client.chat.completions.create(
-            model=":free",
+            model="openrouter/free",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_text},
