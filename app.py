@@ -27,10 +27,10 @@ logging.basicConfig(
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
 
-# Groq Client using OpenAI compatibility
+# OpenRouter Client via OpenAI compatibility
 ai_client = OpenAI(
     api_key=OPENAI_API_KEY,
-    base_url="https://api.groq.com/openai/v1",
+    base_url="https://openrouter.ai/api/v1",
 )
 
 DEFAULT_SYSTEM_PROMPT = (
@@ -104,7 +104,7 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     try:
         response = ai_client.chat.completions.create(
-            model="gemma2-9b-it",
+            model="meta-llama/llama-3.2-3b-instruct:free",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_text},
@@ -113,7 +113,7 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         )
         reply = response.choices[0].message.content
     except Exception as exc:
-        logging.error("OpenAI/Groq error: %s", exc)
+        logging.error("OpenRouter error: %s", exc)
         reply = "My brain crashed. Try asking again in a moment."
 
     await update.message.reply_text(reply)
@@ -129,7 +129,7 @@ def index():
 
 
 def start_bot_background():
-    """Initializes and runs the Telegram bot polling inside its own thread and loop."""
+    """Initializes and runs the Telegram bot polling safely in the background."""
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
@@ -151,8 +151,7 @@ def start_bot_background():
         await tg_app.start()
         await tg_app.updater.start_polling()
         logging.info(">>> TELEGRAM BOT POLLING IS RUNNING SUCCESSFULLY <<<")
-        
-        # Keep loop running forever
+
         while True:
             await asyncio.sleep(3600)
 
