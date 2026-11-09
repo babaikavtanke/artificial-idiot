@@ -25,13 +25,15 @@ logging.basicConfig(
 
 # Read credentials from Render Environment Variables
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
+PRIMARY_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
+SECONDARY_API_KEY = os.getenv("OPENAI_API_KEY_SECONDARY", "").strip()
 
-# OpenRouter Client via OpenAI compatibility
-ai_client = OpenAI(
-    api_key=OPENAI_API_KEY,
-    base_url="https://openrouter.ai/api/v1",
-)
+# Prepare client instances for each provided key
+api_keys = [k for k in [PRIMARY_API_KEY, SECONDARY_API_KEY] if k]
+clients = [
+    OpenAI(api_key=key, base_url="https://openrouter.ai/api/v1")
+    for key in api_keys
+]
 
 DEFAULT_SYSTEM_PROMPT = (
     "You are a comically clueless bot. Always give wildly unhelpful, silly, "
@@ -121,26 +123,30 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if scraped_content:
         system_prompt += f"\nContext from URL:\n{scraped_content}"
 
-    # Try preferred model first, then fallback to openrouter/free
     candidate_models = ["recursive/flint-v1.0:free", "openrouter/free"]
     reply = None
 
-    for model_name in candidate_models:
-        try:
-            logging.info("Attempting generation with model: %s", model_name)
-            response = ai_client.chat.completions.create(
-                model=model_name,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_text},
-                ],
-                temperature=0.9,
-            )
-            reply = response.choices[0].message.content
-            if reply:
-                break
-        except Exception as exc:
-            logging.warning("Model %s failed: %s", model_name, exc)
+    # Loop through available API keys first, then fallback through models
+    for key_index, client in enumerate(clients, start=1):
+        for model_name in candidate_models:
+            try:
+                logging.info("Trying Key #%d with model: %s", key_index, model_name)
+                response = client.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_text},
+                    ],
+                    temperature=0.9,
+                )
+                reply = response.choices[0].message.content
+                if reply:
+                    break
+            except Exception as exc:
+                logging.warning("Key #%d failed on model %s: %s", key_index, model_name, exc)
+
+        if reply:
+            break
 
     if not reply:
         reply = "My brain crashed. Try asking again in a moment."
