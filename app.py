@@ -89,7 +89,26 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if not update.message or not update.message.text:
         return
 
+    chat_type = update.message.chat.type
     user_text = update.message.text
+    bot_username = context.bot.username or ""
+
+    # In groups/supergroups, only reply if mentioned or if the message is a direct reply to the bot
+    if chat_type in ["group", "supergroup"]:
+        is_reply_to_bot = (
+            update.message.reply_to_message
+            and update.message.reply_to_message.from_user
+            and update.message.reply_to_message.from_user.id == context.bot.id
+        )
+        is_mentioned = bool(bot_username and f"@{bot_username}".lower() in user_text.lower())
+
+        if not (is_reply_to_bot or is_mentioned):
+            return  # Skip messages not directed at the bot
+
+        # Strip out the @mention from the message before passing to AI
+        if bot_username:
+            user_text = re.sub(rf"@{re.escape(bot_username)}", "", user_text, flags=re.IGNORECASE).strip()
+
     logging.info("Incoming message: %s", user_text)
 
     urls = re.findall(r"https?://[^\s]+", user_text)
