@@ -41,6 +41,15 @@ DEFAULT_SYSTEM_PROMPT = (
     "Keep answers relatively short and goofy."
 )
 
+# Prioritized free text-generation models with automatic fallback
+CANDIDATE_MODELS = [
+    "recursive/flint-v1.0:free",
+    "dots-studio/dots-3-note-preview:free",
+    "google/gemma-4-26b-a4b-it:free",
+    "nvidia/nemotron-3.5-lightning:free",
+    "openrouter/free",
+]
+
 
 def fetch_url_content(url: str) -> str:
     """Fetch text from a link found in the user prompt."""
@@ -123,12 +132,11 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if scraped_content:
         system_prompt += f"\nContext from URL:\n{scraped_content}"
 
-    candidate_models = ["recursive/flint-v1.0:free", "openrouter/free"]
     reply = None
 
-    # Loop through available API keys first, then fallback through models
+    # Loop through available API keys first, then cascade through free models
     for key_index, client in enumerate(clients, start=1):
-        for model_name in candidate_models:
+        for model_name in CANDIDATE_MODELS:
             try:
                 logging.info("Trying Key #%d with model: %s", key_index, model_name)
                 response = client.chat.completions.create(
@@ -137,7 +145,8 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_text},
                     ],
-                    temperature=0.9,
+                    temperature=1.3,
+                    frequency_penalty=0.4,
                 )
                 reply = response.choices[0].message.content
                 if reply:
